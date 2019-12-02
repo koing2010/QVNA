@@ -8,6 +8,7 @@
 #include <QtSerialPort/QSerialPortInfo>
 #include <QtCharts/QChartView>
 #include <QtCharts/QChartGlobal>
+#include <QTimer>
 
 QT_CHARTS_BEGIN_NAMESPACE
 class QLineSeries;
@@ -49,6 +50,10 @@ private slots:
 
     void StringToHex(QString str, QByteArray &senddata);
 
+    void Samp_timeout_handle(void);
+
+    void packetCmdData(quint8 cmd, quint32 data);
+
 private:
     Ui::MainWindow *ui;
     QSerialPort *serial;
@@ -56,6 +61,8 @@ private:
     QLineSeries *m_series;
     QAudioInput *m_audioInput;
     XYSeriesIODevice *m_device;
+    QTimer *Samp_timer;
+    quint8 SampModel;
 
 };
 
@@ -65,4 +72,18 @@ private:
 #define CMD_STATE 2
 #define DAT_STATE 3
 #define FCS_STATE 4
+
+#define IQ_ACC_MODEL   0x00
+#define ADC_NCO_MODEL   0x01
+
+/**** parse UART CMD ******/
+#define CMD_START_SAMPLING_IQ         0x01
+#define CMD_START_SAMPLING_ADC        0x11
+#define CMD_POLL_STATUS               0x02
+#define CMD_SET_ADF_FREQ              0x03
+#define CMD_SAMPLING_CLK              0x04
+#define CMD_RF_PORT_and_REFLET_SW     0x05//RF -> port_1 or prot_2; p1 or p2 reflect -> ADC
+#define CMD_RF_LEVEL_CTROL            0x06
+#define CMD_S_PARAMETERS              0x07
+
 #endif // MAINWINDOW_H

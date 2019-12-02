@@ -26,9 +26,11 @@
 ** $QT_END_LICENSE$
 **
 ****************************************************************************/
-
+#include <QTimer>
 #include "xyseriesiodevice.h"
 #include <QtCharts/QXYSeries>
+#include <QtCore/QTime>
+#include <qdebug.h>
 
 XYSeriesIODevice::XYSeriesIODevice(QXYSeries * series, QObject *parent) :
     QIODevice(parent),
@@ -42,24 +44,50 @@ qint64 XYSeriesIODevice::readData(char * data, qint64 maxSize)
     Q_UNUSED(maxSize)
     return -1;
 }
+void XYSeriesIODevice::SetRefreshRate(qint32 t_rate)
+{
+    refre_timer = new QTimer();
+
+
+    QObject::connect(refre_timer, SIGNAL(timeout()), this, SLOT(handleTimeout()));
+
+   // refre_timer->start(t_rate);
+
+}
+void XYSeriesIODevice::handleTimeout(void)
+{
+
+  qint32 m_y = qrand()%100 -50  ;
+  qDebug()<< "data"<< m_y;
+
+  writeData((const char * )&m_y, sizeof(qint32));
+}
 
 qint64 XYSeriesIODevice::writeData(const char * data, qint64 maxSize)
 {
-    qint64 range = 2000;
+    qint64 range = 960;
     QVector<QPointF> oldPoints = m_series->pointsVector();
     QVector<QPointF> points;
-    int resolution = 4;
+    int resolution = 8;
 
-    if (oldPoints.count() < range) {
+    if (oldPoints.count() < range)
+    {
         points = m_series->pointsVector();
-    } else {
+    } else
+    {
         for (int i = maxSize/resolution; i < oldPoints.count(); i++)
+        {
             points.append(QPointF(i - maxSize/resolution, oldPoints.at(i).y()));
+        }
     }
 
     qint64 size = points.count();
+    float data_samp;
     for (int k = 0; k < maxSize/resolution; k++)
-        points.append(QPointF(k + size, ((quint8)data[resolution * k] - 128)/128.0));
+    {
+        data_samp = (((unsigned char)data[resolution * k+2] | ((unsigned char)data[resolution * k+3]<<8&0xFF00))  -2048)/2048.0 ;
+        points.append(QPointF(k + size,data_samp ));
+    }
 
     m_series->replace(points);
     return maxSize;

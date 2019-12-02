@@ -4,6 +4,7 @@
 #include <QtCore/qmath.h>
 #include "qchartview.h"
 #include "xyseriesiodevice.h"
+#include <qdebug.h>
 
 #include <QtCharts>
 #include <QtMultimedia/QAudioDeviceInfo>
@@ -30,10 +31,12 @@ MainWindow::MainWindow(QWidget *parent) :
     m_chart = new QChart;
     ui->WavDispGraph->setChart(m_chart);
 
+    SampModel = IQ_ACC_MODEL;
+
     m_series = new QLineSeries;
         m_chart->addSeries(m_series);
         QValueAxis *axisX = new QValueAxis;
-        axisX->setRange(0, 2000);
+        axisX->setRange(0, 960);
         axisX->setLabelFormat("%g");
         axisX->setTitleText("Samples");
         QValueAxis *axisY = new QValueAxis;
@@ -46,23 +49,14 @@ MainWindow::MainWindow(QWidget *parent) :
 
         QVBoxLayout *mainLayout = new QVBoxLayout;
         mainLayout->addWidget(ui->WavDispGraph);
-        setLayout(mainLayout);
+        //setLayout(mainLayout);
 
-        QAudioFormat formatAudio;
-        formatAudio.setSampleRate(8000);
-        formatAudio.setChannelCount(1);
-        formatAudio.setSampleSize(8);
-        formatAudio.setCodec("audio/pcm");
-        formatAudio.setByteOrder(QAudioFormat::LittleEndian);
-        formatAudio.setSampleType(QAudioFormat::UnSignedInt);
-
-        QAudioDeviceInfo inputDevices = QAudioDeviceInfo::defaultInputDevice();
-        m_audioInput = new QAudioInput(inputDevices,formatAudio, this);
 
         m_device = new XYSeriesIODevice(m_series, this);
         m_device->open(QIODevice::WriteOnly);
 
-        m_audioInput->start(m_device);
+        //m_device->SetRefreshRate(2);
+
 
     //查找可用的串口
     foreach (const QSerialPortInfo &info,QSerialPortInfo::availablePorts())
@@ -75,8 +69,6 @@ MainWindow::MainWindow(QWidget *parent) :
             serial.close();
         }
     }
-    //设置波特率下拉菜单默认显示第0项
-    ui->BaudBox->setCurrentIndex(0);
 
 }
 
@@ -95,49 +87,47 @@ void MainWindow::on_OpenSerialButton_clicked()
         //打卡串口
         serial->open(QIODevice::ReadWrite);
         //设置波特率
-        serial->setBaudRate(ui->BaudBox->currentText().toInt());
+        serial->setBaudRate(10000000);
         //设置数据位数
-        switch (ui->BitBox->currentIndex())
-        {
-        case 8:
-            serial->setDataBits(QSerialPort::Data8);
-            break;
-        default:
-            break;
-        }
+        serial->setDataBits(QSerialPort::Data8);
         //设置校验位
-        switch (ui->ParityBox->currentIndex())
-        {
-        case 0:
-            serial->setParity(QSerialPort::NoParity);
-            break;
-        default:
-            break;
-        }
+         serial->setParity(QSerialPort::NoParity);
         //设置停止位
-        switch (ui->BitBox->currentIndex())
-        {
-        case 1:
-            serial->setStopBits(QSerialPort::OneStop);
-            break;
-        case 2:
-            serial->setStopBits(QSerialPort::TwoStop);
-        default:
-            break;
-        }
+         serial->setStopBits(QSerialPort::OneStop);
         //设置流控制
         serial->setFlowControl(QSerialPort::NoFlowControl);
 
         //关闭设置菜单使能
         ui->PortBox->setEnabled(false);
-        ui->BaudBox->setEnabled(false);
+        ui->ModelSelBox->setEnabled(false);
         ui->BitBox->setEnabled(false);
-        ui->ParityBox->setEnabled(false);
-        ui->StopBox->setEnabled(false);
+
         ui->OpenSerialButton->setText(tr("关闭串口"));
 
         //连接信号槽
         QObject::connect(serial,&QSerialPort::readyRead,this,&MainWindow::ReadData);
+
+        //采样定时器
+        Samp_timer = new QTimer();
+
+        //连接定时器信号和处理方法
+        QObject::connect(Samp_timer,&Samp_timer->timeout,this,&MainWindow::Samp_timeout_handle);
+
+        //启动定时器
+        Samp_timer->start(50);
+
+        packetCmdData(0x03, 1000000);//设置频率1000MHz采样
+
+        //读取模式
+        if( ui->ModelSelBox->currentText()== tr("IQ_ACC数据") )
+          {
+              SampModel = IQ_ACC_MODEL;
+          }
+        else if( ui->ModelSelBox->currentText()== tr("ADC_NCO数据") )
+          {
+              SampModel = ADC_NCO_MODEL;
+          }
+
     }
     else
     {
@@ -148,11 +138,12 @@ void MainWindow::on_OpenSerialButton_clicked()
 
         //恢复设置使能
         ui->PortBox->setEnabled(true);
-        ui->BaudBox->setEnabled(true);
         ui->BitBox->setEnabled(true);
-        ui->ParityBox->setEnabled(true);
-        ui->StopBox->setEnabled(true);
+        ui->ModelSelBox->setEnabled(true);
         ui->OpenSerialButton->setText(tr("打开串口"));
+
+        //关闭采样定时
+        Samp_timer->stop();
 
     }
 
@@ -170,103 +161,23 @@ void MainWindow::ReadData()
     //QString str = ui->textEdit->toPlainText();
     int TagetLen = 0;
     if(!buf.isEmpty())
-    {
+        {
       TagetLen = buf.length();
         //str+=tr(buf);
-     /* for( int i = 0; i < TagetLen ; i ++)
-        {
-
-          bufChar[0] = ConvertHexToChar( (buf[i] >>4) & 0xF);
-          bufChar[1]= ConvertHexToChar( (buf[i]& 0xF));
-          bufChar[2] =' ' ;
-          str += tr(bufChar);
-        }
-       ui->textEdit->clear();
-       ui->textEdit->append(str+"X\n");*/
-        /*/ cmd fomat:
-                SOF  LEN  CMD  DATA  FCS
-           Byte: 1    1    1    N/A   1
 
 
-           e.g.: 0xFE  0x04 0x61 0x11 0x00 0x72
-        */
-
-       for( int m = 0; m < TagetLen ; m ++)
-       {
-         qDebug("m=%d ,buf.length()=%d , RxState =%d, buf[m] = %02X",m, TagetLen, RxState, (unsigned char)buf[m]);
-         switch(RxState)
+         Lenth_token += TagetLen;
+         qDebug("buf.length()=%d   token = %d",TagetLen, Lenth_token);
+         if(Lenth_token>=7680)
          {
-         case SOF_STATE:
-             if(buf[m] == (char)0xFE)
-              {
-              RxState = LEN_STATE;
-              Lenth = 0;
-              Lenth_token = 0;
-
-              qDebug(" SOF_STATE \n");
-
-             }
-               Rxbuf.clear();
-             break;
-         case LEN_STATE:
-             Lenth_token = buf[m];
-             RxState = CMD_STATE;
-
-             qDebug(" LEN_STATE \n");
-             break;
-         case CMD_STATE:
-             Rxbuf[0] = Lenth_token;
-             Rxbuf[1] = buf[m];//get the cmd
-             Lenth = 2;
-             Rxbuf.resize(Lenth_token);
-             if( Lenth_token != 0 && Lenth_token < 10)
-             {
-               RxState = DAT_STATE;
-               qDebug(" CMD_STATE \n");
-             }
-             else
-             {
-               RxState = SOF_STATE;
-             }
-
-             break;
-         case DAT_STATE:
-             Rxbuf[Lenth] = (char)buf[m];
-             Lenth ++;
-
-             if(Lenth >= Lenth_token)
-             {
-              RxState = FCS_STATE;
-             }
-
-             qDebug(" DAT_STATE \n");
-             break;
-         case FCS_STATE:
-             qDebug(" FCS_STATE \n");
-
-              qDebug(" CalFCS =%02X \n", CalFCS(Rxbuf));
-             if(buf[m] == (char)CalFCS(Rxbuf))
-             {
-               //parse the frame
-                 ParseFrame(Rxbuf);
-             }
-
-
-
-
-             RxState =SOF_STATE;
-             Lenth = 0;
              Lenth_token = 0;
-             Rxbuf.clear();
-            break;
-
-          default:
-            RxState =SOF_STATE;
-            break;
 
          }
-        }
-    }
+        m_device->writeData(buf,TagetLen);
+
+
+
+      }
     buf.clear();
 }
 
@@ -414,4 +325,33 @@ unsigned char MainWindow::CalFCS(QByteArray &data)
       }
 
       return (unsigned char)xorResult;
+}
+/*******************************************************
+定时采样
+*/
+void MainWindow::Samp_timeout_handle(void)
+{
+  if(SampModel == ADC_NCO_MODEL)
+    {
+       packetCmdData(CMD_START_SAMPLING_ADC, 0);
+    }
+   else if(SampModel == IQ_ACC_MODEL)
+    {
+      packetCmdData(CMD_START_SAMPLING_IQ, 0);
+    }
+}
+/********************************************************
+packet data 打包发送数据
+*/
+void MainWindow::packetCmdData(quint8 cmd, quint32 data)
+{
+    char buf[4];
+    QByteArray sendData;
+    sendData[0] = 0xFE;
+    sendData[1] = cmd;
+    memcpy(buf, &data, sizeof(quint32));
+    sendData.append(buf);
+    serial->write(sendData);
+
+
 }

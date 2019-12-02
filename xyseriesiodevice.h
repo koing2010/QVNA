@@ -32,6 +32,8 @@
 
 #include <QtCore/QIODevice>
 #include <QtCharts/QChartGlobal>
+#include <QTimer>
+#include <QDebug>
 
 QT_CHARTS_BEGIN_NAMESPACE
 class QXYSeries;
@@ -44,13 +46,17 @@ class XYSeriesIODevice : public QIODevice
     Q_OBJECT
 public:
     explicit XYSeriesIODevice(QXYSeries * series, QObject *parent = 0);
-
+    void SetRefreshRate(qint32 t_rate);
+    qint64 writeData(const char * data, qint64 maxSize);
 protected:
     qint64 readData(char * data, qint64 maxSize);
-    qint64 writeData(const char * data, qint64 maxSize);
+
+private slots:
+    void handleTimeout(void);
 
 private:
     QXYSeries *m_series;
+    QTimer   *refre_timer;
 };
 
 #endif // XYSERIESIODEVICE_H
