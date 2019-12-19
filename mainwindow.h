@@ -35,6 +35,8 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+    void CalImagePhase(qint32 i_acc, qint32 q_acc , double *pImage, double *pPhase);
+
 private slots:
     void on_OpenSerialButton_clicked();
 
@@ -51,6 +53,7 @@ private slots:
     void StringToHex(QString str, QByteArray &senddata);
 
     void Samp_timeout_handle(void);
+    void SetFreq_timeout_handle(void);
 
     void packetCmdData(quint8 cmd, quint32 data);
 
@@ -62,10 +65,17 @@ private:
     QAudioInput *m_audioInput;
     XYSeriesIODevice *m_device;
     QTimer *Samp_timer;
+    QTimer *SetFreq_timer;
     quint8 SampModel;
+    quint32 FrequencyStart;
+    quint32 FrequencyEnd;
+    quint32 FrequencyCurrent;
+    quint32 FrequencySweep;
 
 };
 
+
+#define SAMPLING_ACC_NUM     4080
 
 #define SOF_STATE 0
 #define LEN_STATE 1

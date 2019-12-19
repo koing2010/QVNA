@@ -92,3 +92,29 @@ qint64 XYSeriesIODevice::writeData(const char * data, qint64 maxSize)
     m_series->replace(points);
     return maxSize;
 }
+
+void XYSeriesIODevice::writeFloatData( double data_samp )
+{
+  qint64 range = 960;
+  QVector<QPointF> oldPoints = m_series->pointsVector();
+  QVector<QPointF> points;
+
+  if (oldPoints.count() < range)
+  {
+      points = m_series->pointsVector();
+  } else
+  {
+
+      points.append(QPointF(-1, oldPoints.at(0).y()));
+
+  }
+
+  qint64 size = points.count();
+
+
+
+  points.append(QPointF( size, data_samp ));
+
+  m_series->replace(points);
+
+}
