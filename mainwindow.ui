@@ -17,46 +17,46 @@
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>50</y>
-      <width>54</width>
-      <height>12</height>
+      <x>2</x>
+      <y>23</y>
+      <width>48</width>
+      <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>串口</string>
+     <string>串口    </string>
     </property>
    </widget>
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>130</y>
-      <width>54</width>
-      <height>12</height>
+      <x>12</x>
+      <y>82</y>
+      <width>30</width>
+      <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>数据位</string>
+     <string>SWEEP</string>
     </property>
    </widget>
-   <widget class="QComboBox" name="PortBox">
+   <widget class="UserComBox" name="PortBox">
     <property name="geometry">
      <rect>
-      <x>60</x>
-      <y>50</y>
+      <x>56</x>
+      <y>23</y>
       <width>69</width>
-      <height>22</height>
+      <height>19</height>
      </rect>
     </property>
    </widget>
    <widget class="QComboBox" name="ModelSelBox">
     <property name="geometry">
      <rect>
-      <x>60</x>
-      <y>90</y>
-      <width>69</width>
-      <height>22</height>
+      <x>56</x>
+      <y>50</y>
+      <width>92</width>
+      <height>20</height>
      </rect>
     </property>
     <item>
@@ -70,26 +70,11 @@
      </property>
     </item>
    </widget>
-   <widget class="QComboBox" name="BitBox">
-    <property name="geometry">
-     <rect>
-      <x>60</x>
-      <y>120</y>
-      <width>69</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <item>
-     <property name="text">
-      <string>8</string>
-     </property>
-    </item>
-   </widget>
    <widget class="QPushButton" name="OpenSerialButton">
     <property name="geometry">
      <rect>
-      <x>60</x>
-      <y>240</y>
+      <x>10</x>
+      <y>160</y>
       <width>71</width>
       <height>23</height>
      </rect>
@@ -104,7 +89,7 @@
       <x>200</x>
       <y>20</y>
       <width>301</width>
-      <height>101</height>
+      <height>31</height>
      </rect>
     </property>
    </widget>
@@ -112,7 +97,7 @@
     <property name="geometry">
      <rect>
       <x>510</x>
-      <y>80</y>
+      <y>20</y>
       <width>221</width>
       <height>31</height>
      </rect>
@@ -121,8 +106,8 @@
    <widget class="QPushButton" name="SendButton">
     <property name="geometry">
      <rect>
-      <x>760</x>
-      <y>80</y>
+      <x>750</x>
+      <y>20</y>
       <width>75</width>
       <height>31</height>
      </rect>
@@ -164,26 +149,122 @@ p, li { white-space: pre-wrap; }
    <widget class="QChartView" name="WavDispGraph">
     <property name="geometry">
      <rect>
-      <x>140</x>
-      <y>140</y>
-      <width>891</width>
-      <height>661</height>
+      <x>100</x>
+      <y>130</y>
+      <width>931</width>
+      <height>671</height>
      </rect>
     </property>
    </widget>
    <widget class="QLabel" name="label_2">
     <property name="geometry">
      <rect>
-      <x>0</x>
-      <y>100</y>
-      <width>54</width>
-      <height>12</height>
+      <x>2</x>
+      <y>50</y>
+      <width>48</width>
+      <height>16</height>
      </rect>
     </property>
     <property name="text">
      <string>模式选择</string>
     </property>
    </widget>
+   <widget class="QComboBox" name="RF_PortS">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>80</y>
+      <width>56</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>S11</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>S12</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>S21</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>S22</string>
+     </property>
+    </item>
+   </widget>
+   <widget class="QLabel" name="label_4">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>80</y>
+      <width>31</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>端口</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="SweepBox">
+    <property name="geometry">
+     <rect>
+      <x>49</x>
+      <y>81</y>
+      <width>56</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>10MHz</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>1MHz</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>2MHz</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>4MHz</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>5MHz</string>
+     </property>
+    </item>
+   </widget>
+   <zorder>label</zorder>
+   <zorder>label_3</zorder>
+   <zorder>PortBox</zorder>
+   <zorder>ModelSelBox</zorder>
+   <zorder>SweepBox</zorder>
+   <zorder>OpenSerialButton</zorder>
+   <zorder>textEdit</zorder>
+   <zorder>textEdit_2</zorder>
+   <zorder>SendButton</zorder>
+   <zorder>Damping</zorder>
+   <zorder>label_5</zorder>
+   <zorder>WavDispGraph</zorder>
+   <zorder>label_2</zorder>
+   <zorder></zorder>
+   <zorder>SweepBox</zorder>
+   <zorder>SweepBox</zorder>
+   <zorder>RF_PortS</zorder>
+   <zorder>label_4</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -211,6 +292,14 @@ p, li { white-space: pre-wrap; }
    <class>QChartView</class>
    <extends>QGraphicsView</extends>
    <header location="global">qchartview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>UserComBox</class>
+   <extends>QComboBox</extends>
+   <header location="global">usercombox.h</header>
+   <slots>
+    <signal>clicked()</signal>
+   </slots>
   </customwidget>
  </customwidgets>
  <resources/>

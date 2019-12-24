@@ -19,6 +19,9 @@ TEMPLATE = app
 # depend on your compiler). Please consult the documentation of the
 # deprecated API in order to know how to port your code away from it.
 DEFINES += QT_DEPRECATED_WARNINGS
+INCLUDEPATH +=C:\Python36\include
+LIBS += -LEC:\Python36\libs\-l_tkinter\-lpython3\-lpython36
+
 
 # You can also make your code fail to compile if you use deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -29,11 +32,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    xyseriesiodevice.cpp
+    xyseriesiodevice.cpp \
+    usercombox.cpp \
+    touchdtone.cpp
 
 HEADERS += \
         mainwindow.h \
-    xyseriesiodevice.h
+    xyseriesiodevice.h \
+    usercombox.h \
+    touchstone.h
 
 FORMS += \
         mainwindow.ui

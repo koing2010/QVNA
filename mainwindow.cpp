@@ -6,7 +6,10 @@
 #include "xyseriesiodevice.h"
 #include <qdebug.h>
 #include "math.h"
+#include "touchstone.h"
+#include "Python.h"
 
+#include <QVector>
 #include <QtCharts>
 #include <QtMultimedia/QAudioDeviceInfo>
 #include <QtMultimedia/QAudioInput>
@@ -16,13 +19,15 @@
 #include <QSerialPort>
 #include <QSerialPortInfo>
 
+
 using namespace QtCharts;
 QT_CHARTS_USE_NAMESPACE
 
 unsigned char RxState = SOF_STATE;
 unsigned int Lenth_token = 0;
 unsigned int Lenth = 0;
-
+QValueAxis *axisX;
+QValueAxis *axisY;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -36,15 +41,25 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_series = new QLineSeries;
         m_chart->addSeries(m_series);
-        QValueAxis *axisX = new QValueAxis;
-        axisX->setRange(0, 960);
+        axisX = new QValueAxis;
+
+
+
+        FrequencyStart = 140;//初始化 为140MHz
+        FrequencyEnd = 4400;//4.4g
+
+        Chart_XRange = FrequencyEnd - FrequencyStart;
+        axisX->setRange(FrequencyStart, FrequencyEnd);
+
         axisX->setLabelFormat("%g");
-        axisX->setTitleText("Samples");
-        QValueAxis *axisY = new QValueAxis;
-        axisY->setRange(-1, 1);
-        axisY->setTitleText("Audio level");
-        m_chart->setAxisX(axisX, m_series);
+        axisX->setTitleText("Sampling in (MHz)");
+
+        axisY = new QValueAxis;
+        axisY->setRange(-70, 10);
+        axisY->setTitleText("Real in (dB)");
         m_chart->setAxisY(axisY, m_series);
+        m_chart->setAxisX(axisX, m_series);
+
         m_chart->legend()->hide();
         m_chart->setTitle("Data from the microphone");
 
@@ -71,6 +86,19 @@ MainWindow::MainWindow(QWidget *parent) :
         }
     }
 
+    //初始化python工具
+    /*Py_Initialize();
+    if(!Py_IsInitialized())
+      {
+
+        qDebug("pyhon initiallize failed");
+      }
+    else
+      {
+         qDebug("pyhon initiallize success");
+      }
+
+    Py_Finalize();*/
 }
 
 MainWindow::~MainWindow()
@@ -88,7 +116,7 @@ void MainWindow::on_OpenSerialButton_clicked()
         //打卡串口
         serial->open(QIODevice::ReadWrite);
         //设置波特率
-        serial->setBaudRate(10000000);
+        serial->setBaudRate(256000);
         //设置数据位数
         serial->setDataBits(QSerialPort::Data8);
         //设置校验位
@@ -101,7 +129,7 @@ void MainWindow::on_OpenSerialButton_clicked()
         //关闭设置菜单使能
         ui->PortBox->setEnabled(false);
         ui->ModelSelBox->setEnabled(false);
-        ui->BitBox->setEnabled(false);
+        ui->SweepBox->setEnabled(false);
 
         ui->OpenSerialButton->setText(tr("关闭串口"));
 
@@ -112,33 +140,68 @@ void MainWindow::on_OpenSerialButton_clicked()
         Samp_timer = new QTimer();
 
         //连接定时器信号和处理方法
-        QObject::connect(Samp_timer,&Samp_timer->timeout,this,&MainWindow::Samp_timeout_handle);
-
+       //  QObject::connect(Samp_timer, &Samp_timer::timeout,this,&MainWindow::Samp_timeout_handle);
 
         //设定频率寄存器
         SetFreq_timer = new QTimer();
-        QObject::connect(SetFreq_timer,&SetFreq_timer->timeout,this,&MainWindow::SetFreq_timeout_handle);
-        SetFreq_timer ->start(20);
-        FrequencyStart = 140;//初始化 为140MHz
-        FrequencyEnd = 4400;//4.4g
+       // QObject::connect(SetFreq_timer, &SetFreq_timer::timeout,this,&MainWindow::SetFreq_timeout_handle);
+        SetFreq_timer ->start(50);
+
         FrequencyCurrent = FrequencyStart;
-        FrequencySweep = 10;
+
 
         //读取模式
         if( ui->ModelSelBox->currentText()== tr("IQ_ACC数据") )
           {
-              SampModel = IQ_ACC_MODEL;
+              SampModel = IQ_ACC_MODEL;// FPGA 内部计算IQ值
+              Chart_Ymax = 10;
+              Chart_Ymin = -70;
+              Chart_Ytikes = 10;
+              m_chart->removeAxis(axisY);
+
+              axisY->setTitleText("Real in (dB)");
           }
         else if( ui->ModelSelBox->currentText()== tr("ADC_NCO数据") )
           {
-              SampModel = ADC_NCO_MODEL;
-          }
+              SampModel = ADC_NCO_MODEL;// 显示ADC的数据
+              m_chart->removeAxis(axisY);
+              Chart_Ymax = 1;
+              Chart_Ymin = -1;
+              Chart_Ytikes = 0.4;
+              axisY->setTitleText("Real ");
 
-        //启动定时器
-         if(SampModel == ADC_NCO_MODEL)// 显示ADC的数据
-             Samp_timer->start(50);
-         //else
-         //    Samp_timer->start(10);// FPGA 内部计算IQ值
+          }
+         axisY->setRange(Chart_Ymin, Chart_Ymax);
+         axisY->setTickCount((Chart_Ymax - Chart_Ymin)/Chart_Ytikes + 1);
+         m_chart->setAxisY(axisY, m_series);
+
+
+        //设置Sweep
+        QString SweepStr;
+        SweepStr = ui->SweepBox->currentText();
+        SweepStr = SweepStr.mid(0,SweepStr.size()-3); //删掉后面的3位，MHz
+         FrequencySweep = SweepStr.toInt();
+
+
+        //读取设置的端口
+        if( ui->RF_PortS->currentText() ==  tr("S11"))
+        {
+            packetCmdData(CMD_RF_PORT_and_REFLET_SW, S11_CMD);
+         }
+        else  if( ui->RF_PortS->currentText() ==  tr("S12"))
+        {
+            packetCmdData(CMD_RF_PORT_and_REFLET_SW, S12_CMD);
+         }
+        else  if( ui->RF_PortS->currentText() ==  tr("S21"))
+        {
+             packetCmdData(CMD_RF_PORT_and_REFLET_SW, S21_CMD);
+         }
+        else //S22
+        {
+          packetCmdData(CMD_RF_PORT_and_REFLET_SW, S22_CMD);
+         }
+
+        qDebug("Selct %s",ui->RF_PortS->currentText() );
 
 
     }
@@ -156,7 +219,7 @@ void MainWindow::on_OpenSerialButton_clicked()
 
         //恢复设置使能
         ui->PortBox->setEnabled(true);
-        ui->BitBox->setEnabled(true);
+        ui->SweepBox->setEnabled(true);
         ui->ModelSelBox->setEnabled(true);
         ui->OpenSerialButton->setText(tr("打开串口"));
 
@@ -172,17 +235,17 @@ void MainWindow::on_OpenSerialButton_clicked()
 void MainWindow::ReadData()
 {
     QByteArray buf;
-    QByteArray Rxbuf;
-    QByteArray bufChar;
+
      buf = serial->readAll();
     //QString str = ui->textEdit->toPlainText();
     int TagetLen = 0;
+    Sleep(10);
     if(!buf.isEmpty())
      {
         TagetLen = buf.length();
           //str+=tr(buf);
         Lenth_token += TagetLen;
-        qDebug("buf.length()=%d   token = %d",TagetLen, Lenth_token);
+
 
         if(SampModel == ADC_NCO_MODEL)// 显示ADC的数据
           {
@@ -190,8 +253,15 @@ void MainWindow::ReadData()
              if(Lenth_token>=7680)
              {
                  Lenth_token = 0;
+                 SetFreq_timer->start(1);
+                 FrequencyCurrent = FrequencyCurrent + FrequencySweep;
+                 if(FrequencyCurrent > FrequencyEnd)
+                   {
+                     FrequencyCurrent = FrequencyStart;
+                   }
 
              }
+          // qDebug("buf.length()=%d   token = %d",TagetLen, Lenth_token);
 
              //显示数据
             m_device->writeData(buf,TagetLen);
@@ -201,20 +271,49 @@ void MainWindow::ReadData()
 
             qint32 IF_I_ACC_F, IF_Q_ACC_F;
             qint32 IF_I_ACC_R, IF_Q_ACC_R;
-            double Image_F, Phase_F;
-            double Image_R, Phase_R;
+            complex<double> Value_F, Value_R;
 
             memcpy(&IF_I_ACC_F, &buf.data()[0], sizeof(qint32));
             memcpy(&IF_Q_ACC_F, &buf.data()[4], sizeof(qint32));
 
-            CalImagePhase(IF_I_ACC_F, IF_Q_ACC_F, &Image_F, &Phase_F);//根据ACC 计算出幅度和相位
+            CalImagePhase(IF_I_ACC_F, IF_Q_ACC_F, &Value_F);//根据ACC 计算出幅度和相位
 
             memcpy(&IF_I_ACC_R, &buf.data()[8], sizeof(qint32));
             memcpy(&IF_Q_ACC_R, &buf.data()[12], sizeof(qint32));
 
 
-            CalImagePhase(IF_I_ACC_R, IF_Q_ACC_R, &Image_R, &Phase_R);//根据ACC 计算出幅度和相位
-            m_device->writeFloatData(Image_F);
+            CalImagePhase(IF_I_ACC_R, IF_Q_ACC_R, &Value_R);//根据ACC 计算出幅度和相位
+
+            S1pdata.append(Value_R);
+
+            double Image_R = 20*qLn( Value_R.real())/qLn(10);
+
+           // qDebug("%1.5f ", Image_R);
+            m_device->writeFloatData(Image_R, FrequencyCurrent, Chart_XRange, FrequencySweep,FrequencyStart);
+
+
+
+            SetFreq_timer->start(2);
+
+
+            if(FrequencyCurrent < FrequencyEnd)
+              {
+                FrequencyCurrent = FrequencyCurrent + FrequencySweep;
+
+
+              }
+            else
+            {
+              FrequencyCurrent = FrequencyStart;
+              S1pdata.clear();
+            }
+
+
+            if(S1pdata.size())
+              {
+                 complex<double> tail_data =  S1pdata[S1pdata.size()-1];
+                 qDebug("%1.5f ", tail_data.real());
+             }
           }
 
 
@@ -377,14 +476,17 @@ void MainWindow::Samp_timeout_handle(void)
   if(SampModel == ADC_NCO_MODEL)
     {
        packetCmdData(CMD_START_SAMPLING_ADC, 0);
+       Samp_timer->stop();
+
     }
    else if(SampModel == IQ_ACC_MODEL)
     {
       packetCmdData(CMD_START_SAMPLING_IQ, 0);
 
       Samp_timer->stop();
-      SetFreq_timer->start(10);
+      //SetFreq_timer->start(100);
     }
+   qDebug("Send Sampling");
 }
 /******************************************************
 
@@ -394,14 +496,9 @@ void MainWindow::SetFreq_timeout_handle(void)
   SetFreq_timer->stop();
 
   packetCmdData(CMD_SET_ADF_FREQ, FrequencyCurrent*1000 );
-  Sleep(10);
-  Samp_timer->start(10);
+  Samp_timer->start(5);
 
-  FrequencyCurrent = FrequencyCurrent + FrequencySweep;
-  if(FrequencyCurrent > FrequencyEnd)
-    {
-      FrequencyCurrent = FrequencyStart;
-    }
+
   qDebug("FreqCurrent %d",FrequencyCurrent );
 }
 
@@ -410,37 +507,61 @@ packet data 打包发送数据
 */
 void MainWindow::packetCmdData(quint8 cmd, quint32 data)
 {
-    char buf[4];
+     char buf[4];
     QByteArray sendData;
+
+    sendData.resize(7);
     sendData[0] = 0xFE;
     sendData[1] = cmd;
     memcpy(buf, &data, sizeof(quint32));
-    sendData.append(buf);
-    serial->write(sendData);
+    sendData[2] = buf[0];
 
+    sendData[3] = buf[1];
+    sendData[4] = buf[2];
+    sendData[5] = buf[3];
+    //
+    sendData[6] = 0xFE + cmd + sendData[2]+  sendData[3]+ sendData[4]+ sendData[5];
+    serial->write(sendData);
+   // qDebug("%X %X %X %X %X %X %X", (quint8)sendData[0],  (quint8)sendData[1], (quint8)sendData[2],   (quint8)sendData[3], (quint8) sendData[4],  (quint8)sendData[5],  (quint8)sendData[6]);
 
 }
 /*******************************************************
  累计和 计算出 幅度 和 相位
 */
-void MainWindow::CalImagePhase(qint32 i_acc, qint32 q_acc,double *pImage, double *pPhase)
+void MainWindow::CalImagePhase(qint32 i_acc, qint32 q_acc, complex< double> *pData)
 {
 
     double Phase= qAtan(q_acc / i_acc);//结果是弧度
 
     double Image = qFabs(i_acc * 2 / qCos(Phase) / SAMPLING_ACC_NUM / 0x20000);//常数是跟累计器的累计个数有关系
 
-    *pImage = Image;
-
+    pData->real(Image) ;
      Phase = Phase / M_PI * 180; //弧度 转成角度
 
      if (q_acc >= 0 && i_acc >= 0)
-         *pPhase = Phase;
+         pData->imag(Phase);
      else if (q_acc >= 0 && i_acc < 0)
-         *pPhase = 180 + Phase;
+          pData->imag(180 + Phase);
      else if (q_acc < 0 && i_acc >= 0)
-         *pPhase = 360 + Phase;
+          pData->imag(360 + Phase);
      else
-         *pPhase = 180 + Phase;
+          pData->imag( 180 + Phase);
 
+}
+
+
+void MainWindow::on_PortBox_clicked()
+{
+  qDebug()<< "ComBoxClicked";
+   ui->PortBox->clear();
+  foreach (const QSerialPortInfo &info,QSerialPortInfo::availablePorts())
+  {
+      QSerialPort serial;
+      serial.setPort(info);
+      if(serial.open(QIODevice::ReadWrite))
+      {
+           ui->PortBox->addItem(serial.portName());
+          serial.close();
+      }
+  }
 }

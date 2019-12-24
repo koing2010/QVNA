@@ -9,6 +9,10 @@
 #include <QtCharts/QChartView>
 #include <QtCharts/QChartGlobal>
 #include <QTimer>
+#include <vector>
+#include <complex>
+#include <QVector>
+using namespace std;
 
 QT_CHARTS_BEGIN_NAMESPACE
 class QLineSeries;
@@ -35,7 +39,7 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
-    void CalImagePhase(qint32 i_acc, qint32 q_acc , double *pImage, double *pPhase);
+    void CalImagePhase(qint32 i_acc, qint32 q_acc , complex< double> *pData);
 
 private slots:
     void on_OpenSerialButton_clicked();
@@ -57,6 +61,8 @@ private slots:
 
     void packetCmdData(quint8 cmd, quint32 data);
 
+    void on_PortBox_clicked();
+
 private:
     Ui::MainWindow *ui;
     QSerialPort *serial;
@@ -71,6 +77,13 @@ private:
     quint32 FrequencyEnd;
     quint32 FrequencyCurrent;
     quint32 FrequencySweep;
+    qreal  Chart_Ymax,Chart_Ymin,Chart_Ytikes;
+    quint32 Chart_XRange;
+
+    QString touchstone_S2p_str;
+    QString touchstone_S1p_str;
+    QVector< complex<double> > S1pdata;
+    QVector< complex<double> > S2pdata;
 
 };
 
@@ -95,5 +108,12 @@ private:
 #define CMD_RF_PORT_and_REFLET_SW     0x05//RF -> port_1 or prot_2; p1 or p2 reflect -> ADC
 #define CMD_RF_LEVEL_CTROL            0x06
 #define CMD_S_PARAMETERS              0x07
+
+/**S paramate cmd**/
+
+#define  S11_CMD   0 //bit0 RF -> port_1 or prot_2,# Bit1  p1 or p2 reflect -> ADC
+#define  S12_CMD   1
+#define  S21_CMD   2
+#define  S22_CMD   3
 
 #endif // MAINWINDOW_H

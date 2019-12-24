@@ -47,8 +47,8 @@ class XYSeriesIODevice : public QIODevice
 public:
     explicit XYSeriesIODevice(QXYSeries * series, QObject *parent = 0);
     void SetRefreshRate(qint32 t_rate);
-    qint64 writeData(const char * data, qint64 maxSize);
-    void writeFloatData( double data_samp );
+    qint64 writeData(const char * data, qint64 maxSize );
+    void writeFloatData( double data_samp,qint64 Cursor, qint64 range ,qint64 sweep, qint64 Start);
 protected:
     qint64 readData(char * data, qint64 maxSize);
 
